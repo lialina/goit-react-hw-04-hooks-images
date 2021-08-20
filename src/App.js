@@ -1,10 +1,10 @@
-import { useState, useEffect, useReducer, useMemo } from 'react';
+import { useState, useEffect, useReducer } from 'react';
 import { ToastContainer } from 'react-toastify';
 import { toast } from 'react-toastify';
 import s from 'App.module.css';
 import 'react-loader-spinner/dist/loader/css/react-spinner-loader.css';
 import Loader from 'react-loader-spinner';
-import { fetchImages } from 'services/images-api';
+// import { fetchImages } from 'services/images-api';
 
 import Searchbar from 'components/Searchbar/Searchbar';
 import Container from 'components/Container/Container';
@@ -19,6 +19,9 @@ const Status = {
   REJECTED: 'rejected',
 };
 
+const URL = 'https://pixabay.com/api/';
+const API_KEY = '22041445-5ed2f4f2b816c2335628bcb5d';
+
 function countPageReducer(state, action) {
   switch (action.type) {
     case 'increment':
@@ -30,48 +33,45 @@ function countPageReducer(state, action) {
   }
 };
 
-// function countImagesReducer(state, action) {
-//   switch (action.type) {
-//     case 'load new':
-//       return action.hits;
-//     case 'load more':
-//       return [...state, ...action.hits];
-//     default:
-//       return state;
-//   }
-// }
-
 function App() {
   const [query, setQuery] = useState('');
   const [error, setError] = useState(null);
   const [status, setStatus] = useState(Status.IDLE);
-
   const [images, setImages] = useState([]);
-  // const [page, setPage] = useState(1);
   const [loader, setLoader] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [currentModalImage, setCurrentModalImage] = useState(null);
 
   const [page, dispatchPage] = useReducer(countPageReducer, {count: 1, prev: 0});
-  // const [images, dispatchImages] = useReducer(countImagesReducer, []);
-
   
-
   const handleFormSubmit = query => {
     setQuery(query);
     dispatchPage({type: 'reload'});
     setImages([]);
-    // dispatchImages([]);
   };
 
   useEffect(() => {
+    // let controller = new AbortController();
+
     if (!query) {
       return;
     }
 
     setLoader(true);
 
-    fetchImages(query, page.count)
+    const fetchImages = async function (updatedQuery, page) {
+      return fetch(
+        `${URL}?q=${updatedQuery}&page=${page}&key=${API_KEY}&image_type=photo&orientation=horizontal&per_page=12`, 
+        // { signal: controller.signal }
+      ).then(response => {
+        if (response.ok) {
+          return response.json();
+        }
+
+        return Promise.reject(
+          new Error('Possibly server error, please try again.'),
+        );
+      })
       .then(resData => resData.hits)
       .then(hits => {
         if (hits.length === 0) {
@@ -90,30 +90,38 @@ function App() {
         //   если да - то распыляем новые хитс в старые изобржения
         // как проверить если нет prevState?
 
-        console.log(page);
-        if (page.count > page.prev) {
-          setImages([...images, ...hits ]);
-        }
+        // console.log(page);
+        // if (page.count > page.prev) {
+        //   setImages([...images, ...hits ]);
+        // }
 
         setStatus(Status.RESOLVED);
         setLoader(false);
       })
       .catch(error => {
-        setError(error);
-        setStatus(Status.REJECTED);
+         if (error.name === "AbortError") {
+          console.log("FetchCancel: caught abort");
+        } else {
+          setError(error);
+          setStatus(Status.REJECTED);
+        }
       })
       .finally(() => {
         if (images.length > 12) {
           scroll();
         }
       });
+    };
+    fetchImages(query, page);
 
-    return
-  }, [query, page.count, images.length]);
+    return () => {
+      console.log("FetchCancel: unmounting");
+      // controller.abort();
+      fetchImages();
+    };
 
-  // const updateImages = useMemo((hits) => {
-  //   return setImages([...images, ...hits]);
-  // }, [page.count]);
+  }, [query, page, images]);
+
 
   const toggleModal = () => {
     setShowModal(!showModal);
