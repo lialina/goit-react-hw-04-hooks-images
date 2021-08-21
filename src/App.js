@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import s from 'App.module.css';
 import 'react-loader-spinner/dist/loader/css/react-spinner-loader.css';
 import Loader from 'react-loader-spinner';
-// import { fetchImages } from 'services/images-api';
+import { fetchImages } from 'services/images-api';
 
 import Searchbar from 'components/Searchbar/Searchbar';
 import Container from 'components/Container/Container';
@@ -18,9 +18,6 @@ const Status = {
   RESOLVED: 'resolved',
   REJECTED: 'rejected',
 };
-
-const URL = 'https://pixabay.com/api/';
-const API_KEY = '22041445-5ed2f4f2b816c2335628bcb5d';
 
 function countPageReducer(state, action) {
   switch (action.type) {
@@ -51,27 +48,13 @@ function App() {
   };
 
   useEffect(() => {
-    // let controller = new AbortController();
-
     if (!query) {
       return;
     }
 
     setLoader(true);
 
-    const fetchImages = async function (updatedQuery, page) {
-      return fetch(
-        `${URL}?q=${updatedQuery}&page=${page}&key=${API_KEY}&image_type=photo&orientation=horizontal&per_page=12`, 
-        // { signal: controller.signal }
-      ).then(response => {
-        if (response.ok) {
-          return response.json();
-        }
-
-        return Promise.reject(
-          new Error('Possibly server error, please try again.'),
-        );
-      })
+    fetchImages(query, page.count)
       .then(resData => resData.hits)
       .then(hits => {
         if (hits.length === 0) {
@@ -81,46 +64,26 @@ function App() {
           return;
         };
         setImages(hits);
-        
-        // if (prevState.page < page) {
-        //   this.setState({ images: [...prevState.images, ...hits] });
-        // }
 
-        // заменить проверку изменилась ли страничка,
-        //   если да - то распыляем новые хитс в старые изобржения
-        // как проверить если нет prevState?
-
-        // console.log(page);
-        // if (page.count > page.prev) {
-        //   setImages([...images, ...hits ]);
-        // }
+        console.log(page);
+        if (page.count > page.prev) {
+          setImages([...images, ...hits ]);
+        }
 
         setStatus(Status.RESOLVED);
         setLoader(false);
       })
       .catch(error => {
-         if (error.name === "AbortError") {
-          console.log("FetchCancel: caught abort");
-        } else {
           setError(error);
           setStatus(Status.REJECTED);
-        }
       })
       .finally(() => {
         if (images.length > 12) {
           scroll();
         }
       });
-    };
-    fetchImages(query, page);
 
-    return () => {
-      console.log("FetchCancel: unmounting");
-      // controller.abort();
-      fetchImages();
-    };
-
-  }, [query, page, images]);
+  }, [query, page]);
 
 
   const toggleModal = () => {
