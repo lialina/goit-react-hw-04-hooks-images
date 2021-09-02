@@ -65,7 +65,6 @@ function App() {
         };
         setImages(hits);
 
-        console.log(page);
         if (page.count > page.prev) {
           setImages([...images, ...hits ]);
         }
@@ -83,6 +82,7 @@ function App() {
         }
       });
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, page]);
 
 
